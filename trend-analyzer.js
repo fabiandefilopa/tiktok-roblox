@@ -116,6 +116,29 @@ function detectGame(texts) {
   return null;
 }
 
+// Palabras que indican que el video es realmente sobre Roblox
+const ROBLOX_SIGNALS = [
+  'roblox', 'robux', 'bloxburg', 'brookhaven', 'blox fruit', 'bloxfruits',
+  'adopt me', 'adoptme', 'murder mystery', 'mm2', 'tower of hell', 'toh',
+  'arsenal', 'jailbreak', 'royale high', 'berry avenue', 'doors', 'piggy',
+  'da hood', 'dahood', 'the mimic', 'evade', 'regretevator', 'dress to impress',
+  'dti', 'fisch', 'type soul', 'blade ball', 'bedwars', 'rivals', 'obby',
+  'pet simulator', 'phantom forces', 'flee the facility', 'slender', 'bacon',
+  'korblox', 'headless', 'avatar', 'r6', 'r15', 'catalog', 'gamepass',
+  'penguin knockout', 'fling things', 'steal a brainrot', 'violence district',
+];
+
+// Calcula qué porcentaje de videos en un grupo son realmente sobre Roblox
+function calculateRobloxRelevance(videos) {
+  let robloxCount = 0;
+  for (const v of videos) {
+    const text = `${v.description || ''} ${(v.all_hashtags || []).join(' ')}`.toLowerCase();
+    const isRoblox = ROBLOX_SIGNALS.some(signal => text.includes(signal));
+    if (isRoblox) robloxCount++;
+  }
+  return videos.length > 0 ? robloxCount / videos.length : 0;
+}
+
 function detectContentType(texts) {
   const combined = texts.join(' ').toLowerCase();
   const matches = [];
@@ -298,6 +321,10 @@ async function analyzeTrends() {
     const vids = group.videos;
     if (vids.length < 2) continue;
 
+    // Filtro de relevancia Roblox: al menos 50% de los videos deben ser sobre Roblox
+    const robloxRelevance = calculateRobloxRelevance(vids);
+    if (robloxRelevance < 0.5) continue;
+
     // Calcular cuántos videos son nuevos (no reportados antes)
     const newVids = vids.filter(v => !reportedIds.has(v.video_id));
     const reportedRatio = 1 - (newVids.length / vids.length); // 0 = todo nuevo, 1 = todo repetido
@@ -334,6 +361,8 @@ async function analyzeTrends() {
     if (newVids.length > 0) {
       trendScore += newVids.length * 500000;
     }
+    // Bonus por relevancia Roblox: sonidos 100% Roblox suben, los borderline bajan
+    trendScore *= (0.5 + robloxRelevance * 0.5);
 
     const descs = vids.map(v => v.description || '');
     const game = detectGame(descs);
