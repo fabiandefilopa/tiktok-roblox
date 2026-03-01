@@ -13,8 +13,14 @@ const __dirname = dirname(__filename);
 const scannerPath = join(__dirname, 'scanner.js');
 
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
-const CHAT_ID = process.env.TELEGRAM_CHAT_ID;
+const ADMIN_CHAT_ID = process.env.TELEGRAM_CHAT_ID; // chat principal (admin)
+// Soporte multi-usuario: TELEGRAM_CHAT_IDS = "id1,id2,id3" o solo TELEGRAM_CHAT_ID
+const ALL_CHAT_IDS = (process.env.TELEGRAM_CHAT_IDS || process.env.TELEGRAM_CHAT_ID || '')
+  .split(',').map(s => s.trim()).filter(Boolean);
 const API = `https://api.telegram.org/bot${BOT_TOKEN}`;
+
+// --- Usuarios autorizados ---
+const authorizedUsers = new Set(ALL_CHAT_IDS);
 
 // --- Estado ---
 let isScanning = false;
@@ -184,7 +190,17 @@ async function handleUpdate(update) {
     const text = update.message.text.trim();
 
     if (text === '/start' || text === '/help') {
-      await sendMsg(chatId, getStartMessage(), {
+      const userName = update.message.from?.username || update.message.from?.first_name || 'unknown';
+
+      // Notificar al admin si es un usuario nuevo
+      if (!authorizedUsers.has(String(chatId))) {
+        const adminId = ADMIN_CHAT_ID;
+        if (adminId && String(chatId) !== String(adminId)) {
+          await sendMsg(adminId, `Nuevo usuario: @${userName}\nChat ID: <code>${chatId}</code>\n\nPara autorizar, agrega este ID a TELEGRAM_CHAT_IDS en Railway.`);
+        }
+      }
+
+      await sendMsg(chatId, getStartMessage() + `\n\nTu Chat ID: <code>${chatId}</code>`, {
         reply_markup: {
           inline_keyboard: [[
             { text: '🔍 Escanear ahora', callback_data: 'scan_now' },
@@ -223,7 +239,7 @@ async function handleUpdate(update) {
 // --- Polling loop ---
 async function startPolling() {
   console.log('🤖 Bot de Telegram iniciado');
-  console.log(`   Chat ID: ${CHAT_ID}`);
+  console.log(`   Chat IDs: ${ALL_CHAT_IDS.join(', ')}`);
   console.log(`   Cooldown entre scans: ${COOLDOWN_MS / 60000} min`);
   console.log(`   Polling activo...\n`);
 
@@ -256,9 +272,10 @@ async function startPolling() {
 }
 
 // --- Cron: scan automático cada 4 horas ---
+// Usa el primer chat ID para el progreso, el reporte se envía a todos via telegram.js
 cron.schedule('0 */4 * * *', () => {
   console.log(`\n⏰ Cron trigger: ${new Date().toLocaleString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' })}`);
-  runScanner(CHAT_ID, 'cron');
+  runScanner(ALL_CHAT_IDS[0] || ADMIN_CHAT_ID, 'cron');
 });
 
 console.log('⏰ Cron programado: cada 4 horas (0 */4 * * *)');

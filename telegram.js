@@ -3,46 +3,48 @@
 import 'dotenv/config';
 
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
-const CHAT_ID = process.env.TELEGRAM_CHAT_ID;
+// Soporte multi-usuario: TELEGRAM_CHAT_IDS = "id1,id2" o fallback a TELEGRAM_CHAT_ID
+const ALL_CHAT_IDS = (process.env.TELEGRAM_CHAT_IDS || process.env.TELEGRAM_CHAT_ID || '')
+  .split(',').map(s => s.trim()).filter(Boolean);
 const API_BASE = `https://api.telegram.org/bot${BOT_TOKEN}`;
 
 export function isTelegramConfigured() {
-  return !!(BOT_TOKEN && CHAT_ID && CHAT_ID !== 'PENDING');
+  return !!(BOT_TOKEN && ALL_CHAT_IDS.length > 0);
 }
 
 export async function sendTelegramMessage(text, parseMode = 'HTML') {
   if (!isTelegramConfigured()) {
-    console.log('⚠️ Telegram no configurado (falta BOT_TOKEN o CHAT_ID)');
+    console.log('⚠️ Telegram no configurado (falta BOT_TOKEN o CHAT_IDS)');
     return false;
   }
 
   // Telegram limita a 4096 chars por mensaje
   const chunks = splitMessage(text, 4000);
 
-  for (const chunk of chunks) {
-    try {
-      // Sanitizar: remover caracteres que rompen UTF-8 en el JSON de Telegram
-      const cleanChunk = chunk.replace(/[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/g, '');
-      const payload = JSON.stringify({
-        chat_id: CHAT_ID,
-        text: cleanChunk,
-        parse_mode: parseMode,
-        disable_web_page_preview: true,
-      });
-      const res = await fetch(`${API_BASE}/sendMessage`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json; charset=utf-8' },
-        body: payload,
-      });
+  // Enviar a TODOS los chat IDs configurados
+  for (const chatId of ALL_CHAT_IDS) {
+    for (const chunk of chunks) {
+      try {
+        const cleanChunk = chunk.replace(/[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/g, '');
+        const payload = JSON.stringify({
+          chat_id: chatId,
+          text: cleanChunk,
+          parse_mode: parseMode,
+          disable_web_page_preview: true,
+        });
+        const res = await fetch(`${API_BASE}/sendMessage`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json; charset=utf-8' },
+          body: payload,
+        });
 
-      const json = await res.json();
-      if (!json.ok) {
-        console.error('❌ Telegram error:', json.description);
-        return false;
+        const json = await res.json();
+        if (!json.ok) {
+          console.error(`❌ Telegram error (${chatId}):`, json.description);
+        }
+      } catch (err) {
+        console.error(`❌ Telegram error (${chatId}):`, err.message);
       }
-    } catch (err) {
-      console.error('❌ Telegram error:', err.message);
-      return false;
     }
   }
   return true;
