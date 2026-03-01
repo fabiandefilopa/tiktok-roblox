@@ -43,36 +43,36 @@ async function sendMsg(chatId, text, extra = {}) {
 
 // --- Mensaje de /start ---
 function getStartMessage() {
-  return `<b>🤖 TikTok Roblox Scanner Bot</b>
+  return `<b>TikTok Roblox Scanner Bot</b>
 
-<b>¿Qué hace?</b>
+<b>Que hace?</b>
 Escanea TikTok buscando videos de Roblox usando ${HASHTAG_COUNT} hashtags. Encuentra videos nuevos y los guarda en la base de datos.
 
-<b>🔬 ¿Cómo funciona el algoritmo de tendencias?</b>
-1️⃣ <b>Recopilación</b> — Busca videos por hashtags como #roblox, #brookhaven, #bloxfruits, etc. Pagina hasta 5 páginas por hashtag (~150 videos c/u)
+<b>Como funciona el algoritmo de tendencias?</b>
+1. <b>Recopilacion</b> - Busca videos por hashtags como #roblox, #brookhaven, #bloxfruits, etc. Pagina hasta 5 paginas por hashtag (~150 videos c/u)
 
-2️⃣ <b>Agrupación</b> — Agrupa los videos por:
-   • 🎵 <b>Sonido</b> — Videos que usan el mismo audio (sound trends)
-   • #️⃣ <b>Hashtag</b> — Videos con hashtags específicos no genéricos
+2. <b>Agrupacion</b> - Agrupa los videos por:
+   - <b>Sonido</b> - Videos que usan el mismo audio (sound trends)
+   - <b>Hashtag</b> - Videos con hashtags especificos no genericos
 
-3️⃣ <b>Puntuación</b> — Cada tendencia se puntúa por:
-   • Cantidad de videos con ese sonido/hashtag
-   • Views totales + likes×5 + comments×20 + shares×50
-   • Bonus si los videos son recientes (últimos 7 días)
-   • Bonus si el promedio de views supera 1M
+3. <b>Puntuacion</b> - Cada tendencia se puntua por:
+   - Cantidad de videos con ese sonido/hashtag
+   - Views totales + likes x 5 + comments x 20 + shares x 50
+   - Bonus si los videos son recientes (ultimos 7 dias)
+   - Bonus si el promedio de views supera 1M
 
-4️⃣ <b>Filtrado inteligente</b>:
-   • 🗑 Elimina hashtags basura (fyp, viral, parati, etc.)
-   • 🎮 Detecta juegos de Roblox (Brookhaven, Blox Fruits, MM2, Evade, etc.)
-   • 🏷 Clasifica tipo de contenido (Horror, Comedia, Edits, PvP, Dance, etc.)
+4. <b>Filtrado inteligente</b>:
+   - Elimina hashtags basura (fyp, viral, parati, etc.)
+   - Detecta juegos de Roblox (Brookhaven, Blox Fruits, MM2, Evade, etc.)
+   - Clasifica tipo de contenido (Horror, Comedia, Edits, PvP, Dance, etc.)
 
-5️⃣ <b>Anti-repetición</b> — Guarda historial de las últimas 48h. Las tendencias con videos ya reportados bajan de score, priorizando contenido nuevo.
+5. <b>Anti-repeticion</b> - Guarda historial de las ultimas 48h. Las tendencias con videos ya reportados bajan de score, priorizando contenido nuevo.
 
-<b>⏰ Frecuencia</b>
-Escaneo automático cada <b>4 horas</b>. También podés forzar un scan con el botón de abajo.
+<b>Frecuencia</b>
+Escaneo automatico cada <b>4 horas</b>. Tambien podes forzar un scan con el boton de abajo.
 
-<b>📊 Resultado</b>
-Top 15 tendencias con: descripción, juego detectado, tipo de contenido, snippet del video top, y links directos a TikTok.`;
+<b>Resultado</b>
+Top 15 tendencias con: descripcion, juego detectado, tipo de contenido, snippet del video top, y links directos a TikTok.`;
 }
 
 let HASHTAG_COUNT = 10;
