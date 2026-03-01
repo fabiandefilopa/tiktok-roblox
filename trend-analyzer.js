@@ -353,6 +353,7 @@ async function analyzeTrends() {
 
     soundTrends.push({
       type: 'sound',
+      music_id: musicId,
       music_title: group.music_title,
       music_author: group.music_author,
       video_count: vids.length,
@@ -472,7 +473,12 @@ function formatTrendsForTelegram(trends) {
     // --- Nombre de la tendencia ---
     if (t.type === 'sound') {
       const title = esc(t.music_title);
-      msg += `<b>#${t.rank} 🎵 ${title}</b>\n`;
+      const musicLink = t.music_id ? `https://www.tiktok.com/music/-${t.music_id}` : null;
+      if (musicLink) {
+        msg += `<b>#${t.rank} 🎵 <a href="${musicLink}">${title}</a></b>\n`;
+      } else {
+        msg += `<b>#${t.rank} 🎵 ${title}</b>\n`;
+      }
     } else {
       msg += `<b>#${t.rank} ${t.hashtag}</b>\n`;
     }
