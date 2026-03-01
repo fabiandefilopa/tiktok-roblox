@@ -82,16 +82,16 @@ try {
 } catch { /* fallback 10 */ }
 
 // --- Ejecutar scanner ---
-function runScanner(chatId, source = 'manual') {
+async function runScanner(chatId, source = 'manual') {
   if (isScanning) {
-    sendMsg(chatId, '⏳ Ya hay un escaneo en curso, esperá a que termine.');
+    sendMsg(chatId, '⏳ Ya hay un escaneo en curso, espera a que termine.');
     return;
   }
 
   const now = Date.now();
   if (source === 'manual' && (now - lastScanTime) < COOLDOWN_MS) {
     const remaining = Math.ceil((COOLDOWN_MS - (now - lastScanTime)) / 60000);
-    sendMsg(chatId, `⏱ Cooldown activo. Podés escanear de nuevo en <b>${remaining} minutos</b>.`);
+    sendMsg(chatId, `⏱ Cooldown activo. Podes escanear de nuevo en <b>${remaining} minutos</b>.`);
     return;
   }
 
@@ -100,7 +100,40 @@ function runScanner(chatId, source = 'manual') {
   const startTime = Date.now();
 
   console.log(`🔄 Scan iniciado (${source})...`);
-  sendMsg(chatId, `🔄 <b>Escaneando TikTok...</b>\nEsto tarda ~2-5 minutos. Te aviso cuando termine.`);
+
+  // Enviar mensaje inicial y guardar message_id para editarlo
+  const initRes = await sendMsg(chatId, '🔄 <b>Escaneando TikTok...</b>\nIniciando...');
+  const progressMsgId = initRes?.result?.message_id;
+
+  // Estado de progreso
+  let lastLines = [];
+  let lastEditText = '';
+
+  function getElapsed() {
+    return ((Date.now() - startTime) / 1000).toFixed(0);
+  }
+
+  function buildProgressText() {
+    const elapsed = getElapsed();
+    const recent = lastLines.slice(-6).join('\n');
+    return `🔄 <b>Escaneando TikTok...</b> (${elapsed}s)\n\n<code>${recent || 'Iniciando...'}</code>`;
+  }
+
+  // Editar mensaje de progreso cada 10 segundos
+  const progressInterval = setInterval(async () => {
+    if (!progressMsgId) return;
+    const text = buildProgressText();
+    if (text === lastEditText) return; // no editar si no cambió
+    lastEditText = text;
+    try {
+      await tgCall('editMessageText', {
+        chat_id: chatId,
+        message_id: progressMsgId,
+        text,
+        parse_mode: 'HTML',
+      });
+    } catch { /* ignorar errores de edicion */ }
+  }, 10000);
 
   const child = execFile('node', [scannerPath], {
     cwd: __dirname,
@@ -108,20 +141,38 @@ function runScanner(chatId, source = 'manual') {
     maxBuffer: 10 * 1024 * 1024,
   }, async (error, stdout, stderr) => {
     isScanning = false;
-    const elapsed = ((Date.now() - startTime) / 1000).toFixed(0);
+    clearInterval(progressInterval);
+    const elapsed = getElapsed();
 
     if (error) {
       console.error('❌ Scanner error:', error.message);
       if (stderr) console.error(stderr);
-      await sendMsg(chatId, `❌ Scanner falló después de ${elapsed}s.\n<code>${error.message.substring(0, 200)}</code>`);
+      const errText = `❌ <b>Scanner fallo</b> (${elapsed}s)\n<code>${error.message.substring(0, 200)}</code>`;
+      if (progressMsgId) {
+        await tgCall('editMessageText', { chat_id: chatId, message_id: progressMsgId, text: errText, parse_mode: 'HTML' });
+      } else {
+        await sendMsg(chatId, errText);
+      }
     } else {
       console.log(`✅ Scan completado en ${elapsed}s`);
-      // El scanner ya envía el reporte de tendencias por sí mismo
-      // Solo mandamos confirmación si no se ve el reporte
+      const doneText = `✅ <b>Scan completado</b> (${elapsed}s)\n\n<code>${lastLines.slice(-8).join('\n')}</code>`;
+      if (progressMsgId) {
+        await tgCall('editMessageText', { chat_id: chatId, message_id: progressMsgId, text: doneText, parse_mode: 'HTML' });
+      }
     }
   });
 
-  child.stdout?.on('data', d => process.stdout.write(d));
+  child.stdout?.on('data', d => {
+    process.stdout.write(d);
+    const lines = d.toString().split('\n').filter(l => l.trim());
+    for (const line of lines) {
+      // Limpiar emojis y caracteres especiales para <code> block
+      const clean = line.replace(/[<>&]/g, '').trim();
+      if (clean.length > 0) lastLines.push(clean);
+    }
+    // Mantener solo las últimas 20 líneas
+    if (lastLines.length > 20) lastLines = lastLines.slice(-20);
+  });
   child.stderr?.on('data', d => process.stderr.write(d));
 }
 
